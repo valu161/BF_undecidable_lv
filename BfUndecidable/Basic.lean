@@ -93,10 +93,6 @@ theorem halting_undecidable : ∀ candidate, ∃ spoiler,
     sorry
 
 
-
-
-  sorry
-
 /-- The more classical formulation of the result as a negation. -/
 theorem halting_undecidable_neg_formulation :
   ¬ ∃ decider, ∀ prog, eval_total decider prog = true ↔ halts prog prog := by
