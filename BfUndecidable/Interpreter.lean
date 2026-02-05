@@ -6,7 +6,7 @@ Authors: David Gross, Davood Therani
 import Mathlib.Data.List.Basic
 import Mathlib.Logic.Function.Iterate
 import Mathlib.Data.Nat.Find
-import BfUndecidable.Basic
+import LeanSeminar.Basic
 
 /-!
 # Interpreter
@@ -142,7 +142,39 @@ def step (b : BrainState) : BrainState :=
         progPos := b.progPos + 1,
         memPos := (b.memPos + 1) % memSize
         mem := b.mem ++ [0]}
-      -- TBD: Add missing cases
+      | '<' => {b with
+        progPos := b.progPos + 1,
+        memPos := b.memPos - 1}
+      | '+' => {b with
+        progPos := b.progPos + 1,
+        mem := b.mem.modify b.memPos (fun n => (n+1) % cellSize)}
+      | '-' => {b with
+        progPos := b.progPos + 1,
+        mem := b.mem.modify b.memPos Nat.pred}
+      | '[' =>
+        match matchingClose b.prog (b.progPos+1), b.mem[b.memPos]? == some 0 with
+          | some target, true => {b with progPos := target + 1}
+          | _, _              => {b with progPos := b.progPos + 1}
+      | ']' =>
+        -- Below is the easier-to-parse semantics as described in the lecture notes...
+        -- match matchingOpen b.prog (b.progPos-1) with
+        --   | some target => {b with progPos := target}
+        --   | _           => {b with progPos := b.progPos + 1}
+        -- ...but we actually implement this, equivalent one:
+        match matchingOpen b.prog (b.progPos-1), b.mem[b.memPos]? == some 0 with
+          | some target, false => {b with progPos := target + 1}
+          | _, _               => {b with progPos := b.progPos + 1}
+        -- If the flag is no longer set, it avoids jumping back to the opening
+        -- bracket. That's a minor run-time optimization, but more importantly,
+        -- makes the if-run-else-halt construction easier to reason about,
+        -- because in the 'halt' branch, the steady state will be reached earlier.
+      | '.' => {b with
+        progPos := b.progPos + 1,
+        output := b.output ++ [b.mem[b.memPos]?.getD 0]}
+      | ',' => {b with
+          progPos := b.progPos + 1,
+          mem := b.mem.set b.memPos (b.input[0]?.getD 0),
+          input := b.input.tail}
       | _ => {b with progPos := b.progPos + 1}
   else
     b
@@ -159,7 +191,7 @@ def execute (p a : Data) (n : ℕ) : BrainState :=
 
 /- Useful for demonstration purposes -/
 def outputStr (p a : String) (n : ℕ) : String :=
-  String.ofList ((execute p.toList a.toList n).output.map Char.ofNat)
+  String.mk ((execute p.toList a.toList n).output.map Char.ofNat)
 
 /-
   A program halts when its instruction pointer moves past the last instruction.
@@ -239,6 +271,7 @@ partial def partial_eval (prog input : Data) : Bool :=
       b.mem[b.memPos]? == some 0
     else
       go (step b)
+
   go { prog := prog, input := input }
 
 /-
@@ -350,6 +383,7 @@ def toShortString (c : Nat) : String :=
   else
     match (Char.ofNat c).toString.quote.length with
     | 3 => " " ++ (Char.ofNat c).toString ++ " "
+--    | 6 => " " ++ (Char.ofNat c).toString.quote.extract ⟨3⟩ ⟨5⟩
     | 6 => " " ++ (Char.ofNat c).toString.quote.extract
             ((Char.ofNat c).toString.quote.pos? ⟨3⟩).get!
             ((Char.ofNat c).toString.quote.pos? ⟨5⟩).get!
