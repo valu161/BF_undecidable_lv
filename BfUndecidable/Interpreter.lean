@@ -6,7 +6,6 @@ Authors: David Gross, Davood Therani
 import Mathlib.Data.List.Basic
 import Mathlib.Logic.Function.Iterate
 import Mathlib.Data.Nat.Find
-import LeanSeminar.Basic
 
 /-!
 # Interpreter
