@@ -67,7 +67,7 @@ lemma matchingOpen_lt (p : Data) (pos : Nat) (depth : Nat) (c : Nat) (h : pos < 
         exfalso
         simp_all
     · split
-      ·  apply matchingOpen_lt 
+      ·  apply matchingOpen_lt
       ·  split
          · intro a
            simp_all only [Option.some.injEq]
