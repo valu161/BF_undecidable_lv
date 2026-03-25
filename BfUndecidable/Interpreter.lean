@@ -142,7 +142,39 @@ def step (b : BrainState) : BrainState :=
         progPos := b.progPos + 1,
         memPos := (b.memPos + 1) % memSize
         mem := b.mem ++ [0]}
-      -- TBD: Add missing cases
+      | '<' => {b with
+        progPos := b.progPos + 1,
+        memPos := b.memPos - 1}
+      | '+' => {b with
+        progPos := b.progPos + 1,
+        mem := b.mem.modify b.memPos (fun n => (n+1) % cellSize)}
+      | '-' => {b with
+        progPos := b.progPos + 1,
+        mem := b.mem.modify b.memPos Nat.pred}
+      | '[' =>
+        match matchingClose b.prog (b.progPos+1), b.mem[b.memPos]? == some 0 with
+          | some target, true => {b with progPos := target + 1}
+          | _, _              => {b with progPos := b.progPos + 1}
+      | ']' =>
+        -- Below is the easier-to-parse semantics as described in the lecture notes...
+        -- match matchingOpen b.prog (b.progPos-1) with
+        --   | some target => {b with progPos := target}
+        --   | _           => {b with progPos := b.progPos + 1}
+        -- ...but we actually implement this, equivalent one:
+        match matchingOpen b.prog (b.progPos-1), b.mem[b.memPos]? == some 0 with
+          | some target, false => {b with progPos := target + 1}
+          | _, _               => {b with progPos := b.progPos + 1}
+        -- If the flag is no longer set, it avoids jumping back to the opening
+        -- bracket. That's a minor run-time optimization, but more importantly,
+        -- makes the if-run-else-halt construction easier to reason about,
+        -- because in the 'halt' branch, the steady state will be reached earlier.
+      | '.' => {b with
+        progPos := b.progPos + 1,
+        output := b.output ++ [b.mem[b.memPos]?.getD 0]}
+      | ',' => {b with
+          progPos := b.progPos + 1,
+          mem := b.mem.set b.memPos (b.input[0]?.getD 0),
+          input := b.input.tail}
       | _ => {b with progPos := b.progPos + 1}
   else
     b
@@ -350,6 +382,7 @@ def toShortString (c : Nat) : String :=
   else
     match (Char.ofNat c).toString.quote.length with
     | 3 => " " ++ (Char.ofNat c).toString ++ " "
+--    | 6 => " " ++ (Char.ofNat c).toString.quote.extract ⟨3⟩ ⟨5⟩
     | 6 => " " ++ (Char.ofNat c).toString.quote.extract
             ((Char.ofNat c).toString.quote.pos? ⟨3⟩).get!
             ((Char.ofNat c).toString.quote.pos? ⟨5⟩).get!
@@ -377,10 +410,8 @@ unsafe def main : IO Unit := do
   let mut b : BrainState := { prog := hello_world.toList  }
   -- let mut b : BrainState := { prog := reversi.toList , input := "Hallo!?".toList }
   -- let mut b : BrainState := { prog := echo'.toList , input := "Hallo!?".toList }
-
   let stdin <- IO.getStdin
   let mut i : Nat := 0
-
   -- /- get terminal width.-/
   -- let out ← IO.Process.output { cmd := "tput", args := #["cols"] }
   -- let tokens : Nat :=
@@ -389,28 +420,23 @@ unsafe def main : IO Unit := do
   --   | _ => 26 -- 80/3
   /- TBD: Above doesn't work; `tput` seems to return 80, always, when invoked via `lake exe`. -/
   let tokens := 26
-
   while true do
     IO.print clearScreen
     IO.println (centerList tokens b.prog b.progPos)
     IO.println (midpointMarker tokens)
     IO.println "\n"
-
     IO.println (centerList tokens b.mem b.memPos)
     IO.println (midpointMarker tokens)
     IO.println "\n"
-
     IO.println ("Input : " ++ (dataToString b.input))
     IO.println ("Output: " ++ (dataToString b.output))
     IO.println "\n"
-
     IO.print ("Prog pos: " ++ (Nat.repr b.progPos) ++ ",")
     IO.print ("  Mem pos: " ++ (Nat.repr b.memPos) ++ ",")
     IO.println ("  step #: " ++ (Nat.repr i) ++ ".")
-
     IO.println "\nPress return to progress one step, <i>+return for 2^i steps. Ctrl-c to abort."
     let inp ← stdin.getLine
-    let c := inp.get! 0
+    let c := String.Pos.Raw.get! inp 0
     let nr := if c.isDigit then (Nat.pow 2 (c.toNat - '0'.toNat)) else 1
     i := i+nr
     b := step^[nr] b

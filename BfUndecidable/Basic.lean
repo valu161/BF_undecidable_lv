@@ -24,7 +24,9 @@ class DiagModel where
 
   /--
   Obtain the return value of `prog` running on `input`, given a proof that it halts.
-  (We assume that any return value can be cast into a `Bool`)
+  (We assume that any return value can be cast into a `Bool` we just use programms in our proove,
+  that return `true` or `false`. any other programm can just randomly be mapped to true or false
+  )
   -/
   eval (prog input : Data) (h : halts prog input) : Bool
 
@@ -40,7 +42,7 @@ class DiagModel where
       eval cond input h = false → halts (if_run_else_halt cond) input
 
 
-variable {Model : DiagModel}
+variable {Model : DiagModel} -- everything takes diag modell as implicit input (we are working conditional on having such a model)
 
 open DiagModel
 
@@ -54,7 +56,10 @@ structure TotalProgram where
   htotal : ∀ input, halts prog input
 
 def eval_total (p : TotalProgram) (input : Data) := eval p.prog input (p.htotal input)
-
+/- hier ist input nicht teil der struktur, weil es darum geht, dass in der struktur nur das programm
+beschrieben wird. Es soll eben für alle inputs halten nicht für ein spezifisches.
+ Diagmodell bleibt offen, darum weiß lean den Type von input und was halts ist, man muss input nicht in
+ struture spezifizieren-/
 /--
 Main result. The model can't decide its own halting problem:
 There is no total program that maps exactly those `prog input : Data` to `true`
@@ -73,21 +78,98 @@ This means that whatever it is that `candidate` does, it certainly doesn't solve
 the halting problem, as it gives the wrong answer at least on `spoiler`.
 
 This formalization emphasizes the constructive nature of the proof. For its
-(equivalent) formulation as a negation, see below.
--/
+(equivalent) formulation as a negation, see below. -/
+
+
+
+
 theorem halting_undecidable : ∀ candidate, ∃ spoiler,
   (eval_total candidate spoiler = true ∧ ¬halts spoiler spoiler)
   ∨
   (eval_total candidate spoiler = false ∧ halts spoiler spoiler) := by
+intro candidate
+let spoiler := if_run_else_halt candidate.prog --this is the name of the programm from the tot. programm sturcture
+use spoiler
+by_cases hctrue : (eval_total candidate spoiler = true)
+· have hnothalts : ¬ halts spoiler spoiler :=
+    ireh_runs_of_true candidate.prog spoiler (candidate.htotal spoiler) hctrue
+  exact Or.inl ⟨hctrue, hnothalts⟩
+
+· have hfalse : eval_total candidate spoiler = false :=
+    by simp [hctrue]
+  have hhalts :  halts spoiler spoiler :=
+   ireh_halts_of_false candidate.prog spoiler (candidate.htotal spoiler) hfalse
+  exact Or.inr ⟨hfalse, hhalts⟩
 
 
-  sorry
+lemma evalistureorfalse (cond : Data) (input : Data) (h : halts cond input) : eval cond input h = true ∨ eval cond input h = false := by
+
+have trueorfalse (b:Bool) : b = true ∨ b = false := by
+  cases b
+  · exact Or.inr rfl
+  · exact Or.inl rfl
+exact trueorfalse (eval cond input h)
+
+theorem halting_undecidableoflemma : ∀ candidate, ∃ spoiler,
+  (eval_total candidate spoiler = true ∧ ¬halts spoiler spoiler)
+  ∨
+  (eval_total candidate spoiler = false ∧ halts spoiler spoiler) := by
+intro candidate
+let spoiler := if_run_else_halt candidate.prog --this is the name of the programm from the tot. programm sturcture
+use spoiler
+have trueorfalse :  eval_total candidate spoiler = true ∨ eval_total candidate spoiler = false := by
+  have h := evalistureorfalse candidate.prog spoiler (candidate.htotal spoiler)
+  exact h
+cases trueorfalse with
+| inl htrue =>
+  have hnothalts : ¬ halts spoiler spoiler :=
+    ireh_runs_of_true candidate.prog spoiler (candidate.htotal spoiler) htrue
+  exact Or.inl ⟨htrue, hnothalts⟩
+| inr hfalse =>
+  have hhalts :  halts spoiler spoiler :=
+   ireh_halts_of_false candidate.prog spoiler (candidate.htotal spoiler) hfalse
+  exact Or.inr ⟨hfalse, hhalts⟩
+
+
+
 
 /-- The more classical formulation of the result as a negation. -/
 theorem halting_undecidable_neg_formulation :
   ¬ ∃ decider, ∀ prog, eval_total decider prog = true ↔ halts prog prog := by
+  intro (h :  ∃ decider, ∀ prog, eval_total decider prog = true ↔ halts prog prog)
+  match h with
+  | ⟨decider, hdecider⟩ =>
+  let spoiler := if_run_else_halt decider.prog
+  have hneghalts : eval_total decider spoiler = true -> ¬ halts spoiler spoiler :=
+    ireh_runs_of_true decider.prog spoiler (decider.htotal spoiler)
+  have hhalts : eval_total decider spoiler = true -> halts spoiler spoiler := by
+    cases (hdecider spoiler) with
+   | intro hpq hqp => exact (hpq)
+  have trueorfalse :  eval_total decider spoiler = true ∨ eval_total decider spoiler = false := by
+    have h := evalistureorfalse decider.prog spoiler (decider.htotal spoiler)
+    exact h
+  cases trueorfalse with
+  | inl htrue =>
+    have hnothalts : ¬ halts spoiler spoiler := hneghalts htrue
+    have hhaltscontradiction : halts spoiler spoiler := hhalts htrue
+    exact hnothalts hhaltscontradiction
+  | inr hfalse =>
+  have hnottrue: ¬ eval_total decider spoiler = true := by
+   intro htrue
+   have falseistrue : false=true := by
+    rw [hfalse] at htrue
+    exact htrue
+   exact Bool.noConfusion (falseistrue)
+  have hactuallytrue : eval_total decider spoiler = true := by
+   cases (hdecider spoiler) with
+   | intro hpq hqp => exact (hqp (ireh_halts_of_false decider.prog spoiler (decider.htotal spoiler) hfalse))
+  exact hnottrue hactuallytrue
 
-  sorry
+  --damn i messed up a little bit here but in the end I got the proof working XD
+  ---next time:  rw [← halting_prob] at ...  makes it easier. I just use the halting prob theorem that I already proved above and dont
+  -- have to do half of teh work again
+
+
 
 /-
 
