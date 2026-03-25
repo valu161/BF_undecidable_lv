@@ -15,40 +15,15 @@ lemma step_execute {p d n} : execute p d (n + 1) = step (execute p d n) := by
   `prog` is immutable.
 -/
 
-
 lemma prog_immutable_step {b} : (step b).prog = b.prog := by
- unfold step --at first replace step with its def.
- by_cases hpos : b.progPos < b.prog.length --then 'undo' the if condition
- · simp [hpos] ; split  --after 'undoing' split the function into
-                       --its match branches, because '[', ']' are too complex for tactics
-   · rfl  --rfl works here, because its def. equality
-   · rfl
-   · rfl
-   · rfl
-   · split <;> rfl --after spliting into cases its the same here
-   · split <;> rfl
-   · simp
-   · simp
-   · simp
- ·simp [hpos]
-
-
-
+  sorry
 
 lemma prog_immutable_steps {b k} : (step^[k] b).prog = b.prog := by
-  induction k with
-  | zero =>rfl
-  | succ k ih =>
-    have h1:  step^[k + 1] b = step (step^[k] b) := by simp [Function.iterate_succ_apply']
-    have h2: (step (step^[k] b)).prog = (step^[k] b).prog := by simp [prog_immutable_step]
-    have h3 : (step^[k] b).prog = b.prog := ih
-    rw [h1, h2, h3]
+  sorry
 
-
-
+@[simp]
 lemma prog_immutable_execute (p a n) : (execute p a n).prog = p := by
-  unfold execute
-  use prog_immutable_steps
+  sorry
 
 /-
   Matching brackets lie within `prog`.

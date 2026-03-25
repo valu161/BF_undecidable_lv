@@ -131,6 +131,17 @@ cases trueorfalse with
   exact Or.inr ⟨hfalse, hhalts⟩
 
 
+  intro candidate
+  let spoiler := if_run_else_halt candidate.prog
+  use spoiler
+
+  by_cases (eval_total candidate spoiler = true)
+  ·
+
+    sorry
+  ·
+
+    sorry
 
 
 /-- The more classical formulation of the result as a negation. -/

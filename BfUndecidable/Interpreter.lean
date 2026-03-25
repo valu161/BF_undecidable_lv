@@ -6,7 +6,6 @@ Authors: David Gross, Davood Therani
 import Mathlib.Data.List.Basic
 import Mathlib.Logic.Function.Iterate
 import Mathlib.Data.Nat.Find
-import BfUndecidable.Basic
 
 /-!
 # Interpreter
@@ -191,7 +190,7 @@ def execute (p a : Data) (n : ℕ) : BrainState :=
 
 /- Useful for demonstration purposes -/
 def outputStr (p a : String) (n : ℕ) : String :=
-  String.ofList ((execute p.toList a.toList n).output.map Char.ofNat)
+  String.mk ((execute p.toList a.toList n).output.map Char.ofNat)
 
 /-
   A program halts when its instruction pointer moves past the last instruction.
@@ -271,6 +270,7 @@ partial def partial_eval (prog input : Data) : Bool :=
       b.mem[b.memPos]? == some 0
     else
       go (step b)
+
   go { prog := prog, input := input }
 
 /-
