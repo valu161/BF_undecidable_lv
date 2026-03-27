@@ -60,6 +60,7 @@ lemma matchingOpen_lt (p : Data) (pos : Nat) (depth : Nat) (c : Nat) (h : pos < 
     split -- split the if pos = 0…
     · split -- Now the if prog[p] = '[' || depth = 0
       · intro c_eq_0 -- Get the assumption about c from the inference
+        
         -- Apply injectivity of some (soma a = some b <=> a = b) to all goals and hypotheses.
         simp_all only [Option.some.injEq]
         subst c_eq_0 -- substitute c with 0 since they're equal
@@ -67,6 +68,7 @@ lemma matchingOpen_lt (p : Data) (pos : Nat) (depth : Nat) (c : Nat) (h : pos < 
       · intro a
         -- ^ a stands for 'absurd' :P
         --   (But really this does the same as the intro above only with a different outcome)
+        
         exfalso -- Let's us prove anything as long as we can construct false
         simp_all -- make lean see that we can construct false out of none = some
     · split -- split the match 
@@ -138,13 +140,32 @@ of the original program.
 -/
 
 lemma extension_body_irrelevance (prog : Data) (pos : Nat) (hpos : pos < prog.length := by omega) :
-  prog.get ⟨pos, hpos⟩ = (ireh_extend prog).get ⟨pos, by simp; omega⟩ := by sorry
+  prog.get ⟨pos, hpos⟩ = (ireh_extend prog).get ⟨pos, by simp; omega⟩ := by
+  simp_all
 
 lemma extension_matching_open_irrelevance
     (prog : Data) (pos : Nat) (depth : Nat) (hpos : pos < prog.length) :
     matchingOpen prog pos depth hpos =
     matchingOpen (ireh_extend prog) pos depth (by simp; omega) := by
-  sorry
+    unfold matchingOpen -- replace by definition
+    
+    -- Simplify all goals and hypotheses using just the facts that:
+    -- list.get i = list[i] and for any i < listA.length: listA[i] = (listA + listB)[i]
+    -- The latter is the more intreseting one for this proof ;)
+    simp_all only [List.get_eq_getElem, List.getElem_append_left] 
+    
+    split -- Split if pos = 0 on both sides of the equality
+    · simp_all -- Simplify to make lean see the equality we get here is true…
+    · split -- Split the match on the left side
+      · simp_all only -- As it turns out, all cases evaluate to the same here…
+        
+        -- …so we can talk to our old friend recursion again
+        apply extension_matching_open_irrelevance 
+      · simp_all only -- Here again, the cases are all the same…
+        split -- …but we end up with an 'if' to split
+        · simp_all only -- Simp the some pos = some pos so lean gets it
+        · apply extension_matching_open_irrelevance -- And now recurse, recurse, recurse!
+      · apply extension_matching_open_irrelevance
 
 -- simp_all [matchingClose] introduces Classica.choice. TBD. reduceIte, reduceDIte?
 --
@@ -154,9 +175,7 @@ lemma extension_matching_close_irrelevance
     (prog : Data) (pos : Nat) (depth : Nat) (hpos : pos ≤ prog.length) :
     matchingClose prog pos depth
     =
-    matchingClose (ireh_extend prog) pos depth := by
-  sorry
-
+    matchingClose (ireh_extend prog) pos depth := by sorry
 /-
   Executing a program commutes with extending it.
 -/
