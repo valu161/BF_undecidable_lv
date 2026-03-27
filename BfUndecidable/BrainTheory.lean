@@ -27,9 +27,9 @@ lemma prog_immutable_step {b} : (step b).prog = b.prog := by
    · rfl
    · split <;> rfl --after spliting into cases its the same here
    · split <;> rfl
-   · simp
-   · simp
-   · simp
+   · rfl
+   · rfl
+   · rfl
  ·simp [hpos]
 
 
@@ -99,9 +99,53 @@ lemma matchingClose_lt (p : Data) (pos : Nat) (depth : Nat) (c : Nat) :
 The instruction pointer moves at most one place beyond `prog`.
 -/
 lemma progPos_le (p a) (n) : (execute p a n).progPos ≤ p.length := by
-  sorry
+  induction n with  --induction over n
+  | zero =>
+   unfold execute ; simp --if we do nothing, then the instruction pointer is at 0,
+                          --which is less than or equal to the length of the program
+  | succ n ih => /-show that step does not move the instruction pointer more than one
+  place beyond the program extract step becase we have to show what it does-/
+  have h1: (execute p a (n + 1)) = step (execute p a (n))
+  := by unfold execute ; simp [Function.iterate_succ_apply'] --execute is defined by iterate
+  rw [h1] --extract step
+  unfold step --okay, lets go 0`_´0
+  by_cases hpos : (execute p a (n)).progPos < (execute p a (n)).prog.length --undo if condition
+  · simp? [hpos]
+    have h2 : (execute p a (n)).prog.length = p.length :=
+     by simp [prog_immutable_execute p a (n)] --use it rewrite goal to be able to use hpos
+    split
+    ·simp? ; rw [← h2] ; exact Nat.succ_le_of_lt hpos
+    /- if I forget what the lemma does, swipe over it -/
+    ·simp? ; rw [← h2] ; exact Nat.succ_le_of_lt hpos
+    ·simp? ; rw [← h2] ; exact Nat.succ_le_of_lt hpos
+    ·simp? ; rw [← h2] ; exact Nat.succ_le_of_lt hpos
+    ·split   --damn. the brackets again
+     case h_1 x_1 x_2 x_3 x_4 x_5 x_6  => --give the new hypotheses names
+      simp? ; rw [← h2]
+      have almost : x_4 < List.length (execute p a n).prog :=
+      --thats not elegant but it works. (bec. matching close_lt gives <, but we need ≤)
+      matchingClose_lt (execute p a (n)).prog ((execute p a n).progPos+1) 0 x_4 x_5
+      exact Nat.succ_le_of_lt almost
+     case h_2 x_1 x_2 x_3 x_4 => rw [← h2] ;exact Nat.succ_le_of_lt hpos
+     --(case h2 just does progpos +1)
+    ·split --now kind of the same for matching open
+     case h_1 x_1 x_2 x_3 x_4 x_5  =>
+      simp? ; rw [<- h2]
+      have ih01: (execute p a n).progPos - 1 < (execute p a n).prog.length := by omega
+      --(no idea why omega works, who tells lean that prog.length is not 0? but ok)
+      have almost : x_3 < List.length (execute p a n).prog :=
+                   matchingOpen_lt (execute p a n).prog ((execute p a n).progPos-1 ) 0 x_3 ih01 x_4
+      exact Nat.succ_le_of_lt almost
+     case h_2 x_1 x_2 x_3 x_4 => rw [← h2] ;exact Nat.succ_le_of_lt hpos
+    ·  simp? ; rw [← h2] ; exact Nat.succ_le_of_lt hpos
+    ·  simp? ; rw [← h2] ; exact Nat.succ_le_of_lt hpos
+    ·  simp? ; rw [← h2] ; exact Nat.succ_le_of_lt hpos
+  · simp? [hpos]
+    exact ih --step does nothing, so we can use the induction hypothesis
 
-/--
+
+
+/-
 Before the program has halted, the instruction pointer stays within `prog`
 -/
 lemma progPos_lt_find {p d : Data} {n : ℕ} (h : halts p d) (hn : n < Nat.find h) :
