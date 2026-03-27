@@ -56,41 +56,44 @@ lemma prog_immutable_execute (p a n) : (execute p a n).prog = p := by
 
 lemma matchingOpen_lt (p : Data) (pos : Nat) (depth : Nat) (c : Nat) (h : pos < p.length) :
   matchingOpen p pos depth = some c → c < p.length := by
-    unfold matchingOpen
-    split
-    · split
+    unfold matchingOpen -- Substitute matchingOpen with it's definition
+    split -- split the if pos = 0…
+    · split -- Now the if prog[p] = '[' || depth = 0
+      · intro c_eq_0 -- Get the assumption about c from the inference
+        -- Apply injectivity of some (soma a = some b <=> a = b) to all goals and hypotheses.
+        simp_all only [Option.some.injEq]
+        subst c_eq_0 -- substitute c with 0 since they're equal
+        simp_all -- simplify everthing to make lean believe we proved this subgoal
       · intro a
-        simp_all [Option.some.injEq]
-        subst a
-        simp_all
-      · intro a
-        exfalso
-        simp_all
-    · split
-      ·  apply matchingOpen_lt
-      ·  split
-         · intro a
+        -- ^ a stands for 'absurd' :P
+        --   (But really this does the same as the intro above only with a different outcome)
+        exfalso -- Let's us prove anything as long as we can construct false
+        simp_all -- make lean see that we can construct false out of none = some
+    · split -- split the match 
+      ·  apply matchingOpen_lt -- Recursion, yay!
+      ·  split -- Split the if depth = 0
+         · intro pos_eq_c -- This is mostly parallel to something above
            simp_all only [Option.some.injEq]
-           subst a
-           apply h
-         · apply matchingOpen_lt
-      ·  apply matchingOpen_lt
+           subst pos_eq_c
+           apply h -- Our goal matches h, so we can just apply it
+         · apply matchingOpen_lt -- Recursion, again…
+      ·  apply matchingOpen_lt -- …and again!
 
 lemma matchingClose_lt (p : Data) (pos : Nat) (depth : Nat) (c : Nat) :
   matchingClose p pos depth = some c → c <  p.length := by
     unfold matchingClose
-    split
-    ·  split
-       · apply matchingClose_lt
-       · split
-         · intro a
-           simp_all only [Option.some.injEq]
-           subst a
-           rename_i h_1 h_2 h_3 h_4
-           apply h_1
+    split -- Here, we can get h from the definition (kinda, see below)
+    ·  split -- match…
+       · apply matchingClose_lt -- Recursion, yet again, I'll stop saying it now
+       · split -- if depth = 0…
+         · intro pos_eq_c
+           simp_all only [Option.some.injEq] -- This has been explained in matchingOpen_lt
+           subst pos_eq_c
+           rename_i h _ _ _ -- This is where we *really* get h!
+           apply h
          · apply matchingClose_lt
        · apply matchingClose_lt
-    · intro a
+    · intro a -- again, some = none so a for absurd…
       exfalso
       simp_all
 
