@@ -167,7 +167,20 @@ lemma halts_step {p a n} (h : halted_at p a n) : halted_at p a (n + 1) := by
   sorry
 
 lemma halts_gt {p a n m} (hm : n < m) (h : halted_at p a n) : halted_at p a m := by
-  sorry
+  let k := m - n - 1; let hk : k = m - n - 1 := by rfl
+  have hkm : m = (n + k).succ := by omega
+  rw [hkm]
+  induction k with
+  | zero =>
+    simp only [Nat.add_zero, Nat.succ_eq_add_one]
+    apply halts_step
+    exact h
+  | succ =>
+    simp only [Nat.succ_eq_add_one]
+    rename_i halted_before
+    rw [<- Nat.add_assoc]
+    apply halts_step
+    exact halted_before
 
 /--
 BF allows for a simple construction that turns a program `cond` into
