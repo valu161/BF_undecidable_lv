@@ -164,13 +164,30 @@ lemma progPos_lt_find {p d : Data} {n : ℕ} (h : halts p d) (hn : n < Nat.find 
 -/
 
 lemma halts_step {p a n} (h : halted_at p a n) : halted_at p a (n + 1) := by
-  sorry
+  unfold halted_at at *
+  let n_state := execute p a n -- It just looks nicer this way
+  -- Some helper equalities for rewriting, all pretty easy…
+  have n_eq : execute p a n = n_state := by rfl
+  have n_eq': step^[n] { prog := p, input := a } = n_state := by rfl
+  have p_eq : n_state.prog = p := by rw [<- n_eq, prog_immutable_execute];
+  rw [n_eq] at h -- Now, h can look nice! :)
+  unfold execute
+  -- Rewrite the step^[n + 1] into step(step^[n]) and turn step^[n] into n_state
+  rw [Function.iterate_succ', Function.comp_apply, n_eq']
+  unfold step
+  split -- The only interesting thing is the `if h: b.progPos < b.prog.length`
+  · exfalso -- We're at the end of the program, so this case is false
+    rename_i wrong
+    rw [p_eq] at wrong
+    simp_all only [Nat.lt_irrefl, n_state]
+  · exact h -- …and the rest is easy :)
 
 lemma halts_gt {p a n m} (hm : n < m) (h : halted_at p a n) : halted_at p a m := by
-  let k := m - n - 1; let hk : k = m - n - 1 := by rfl
+  -- This makes for a more useful start for the induction
+  let k := m - n - 1; let hk : k = m - n - 1 := by rfl 
   have hkm : m = (n + k).succ := by omega
-  rw [hkm]
-  induction k with
+  rw [hkm] -- rewrite in terms of k
+  induction k with -- This isn't too complicated…
   | zero =>
     simp only [Nat.add_zero, Nat.succ_eq_add_one]
     apply halts_step
