@@ -60,7 +60,7 @@ lemma matchingOpen_lt (p : Data) (pos : Nat) (depth : Nat) (c : Nat) (h : pos < 
     split -- split the if pos = 0…
     · split -- Now the if prog[p] = '[' || depth = 0
       · intro c_eq_0 -- Get the assumption about c from the inference
-       
+
         -- Apply injectivity of some (soma a = some b <=> a = b) to all goals and hypotheses.
         simp_all only [Option.some.injEq]
         subst c_eq_0 -- substitute c with 0 since they're equal
@@ -68,7 +68,6 @@ lemma matchingOpen_lt (p : Data) (pos : Nat) (depth : Nat) (c : Nat) (h : pos < 
       · intro a
         -- ^ a stands for 'absurd' :P
         --   (But really this does the same as the intro above only with a different outcome)
-       
         exfalso -- Let's us prove anything as long as we can construct false
         simp_all -- make lean see that we can construct false out of none = some
     · split -- split the match
@@ -155,7 +154,13 @@ Before the program has halted, the instruction pointer stays within `prog`
 -/
 lemma progPos_lt_find {p d : Data} {n : ℕ} (h : halts p d) (hn : n < Nat.find h) :
     (execute p d n).progPos < p.length := by
-  sorry
+  have hprogpos : (execute p d n).progPos ≤ p.length := progPos_le p d n
+  by_cases hpos : (execute p d n).progPos < p.length
+  · exact hpos
+  · have hprogpos_eq : halted_at p d n := by omega
+    have contra : ¬ halted_at p d n := Nat.find_min h hn
+    contradiction
+
 
 /-
 
@@ -164,7 +169,33 @@ lemma progPos_lt_find {p d : Data} {n : ℕ} (h : halts p d) (hn : n < Nat.find 
 -/
 
 lemma halts_step {p a n} (h : halted_at p a n) : halted_at p a (n + 1) := by
-  sorry
+  unfold halted_at at h ⊢
+  have h1: (execute p a (n + 1)) = step (execute p a (n))
+  := by unfold execute ; simp [Function.iterate_succ_apply'] --execute is defined by iterate
+  rw [h1] --extract step
+  unfold step
+  have hcomeon : ¬ (execute p a n).progPos < (execute p a n).prog.length := by
+      have hsimp : List.length p = List.length (execute p a n).prog :=
+        by simp [prog_immutable_execute p a n]
+      simp [hsimp] at h
+      intro contra
+      omega
+  simp?[hcomeon]
+  exact h
+
+
+
+  /-
+  by_cases hpos : (execute p a n).progPos < (execute p a n).prog.length
+  · have hsimp : List.length p = List.length (execute p a n).prog := by simp [prog_immutable_execute p a n]
+    simp [hsimp] at h
+    have contr : (execute p a n).progPos < (execute p a n).progPos := by
+      simp [h] at hpos
+  exact Nat.lt_irrefl contr
+
+exact Nat.lt_irrefl _ this-/
+
+
 
 lemma halts_gt {p a n m} (hm : n < m) (h : halted_at p a n) : halted_at p a m := by
   sorry
@@ -192,16 +223,16 @@ lemma extension_matching_open_irrelevance
     matchingOpen prog pos depth hpos =
     matchingOpen (ireh_extend prog) pos depth (by simp; omega) := by
     unfold matchingOpen -- replace by definition
-   
+
     -- Simplify all goals and hypotheses using just the facts that:
     -- list.get i = list[i] and for any i < listA.length: listA[i] = (listA + listB)[i]
     simp_all only [List.get_eq_getElem, List.getElem_append_left]
-   
+
     split -- Split if pos = 0 on both sides of the equality
     · simp_all -- Simplify to make lean see the equality we get here is true…
     · split -- Split the match on the left side
       · simp_all only -- As it turns out, all cases evaluate to the same here…
-       
+
         -- …so we can talk to our old friend recursion again
         apply extension_matching_open_irrelevance
       · simp_all only -- Here again, the cases are all the same…
