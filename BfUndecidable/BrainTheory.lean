@@ -185,20 +185,23 @@ lemma halts_step {p a n} (h : halted_at p a n) : halted_at p a (n + 1) := by
 
 
 
-  /-
-  by_cases hpos : (execute p a n).progPos < (execute p a n).prog.length
-  · have hsimp : List.length p = List.length (execute p a n).prog := by simp [prog_immutable_execute p a n]
-    simp [hsimp] at h
-    have contr : (execute p a n).progPos < (execute p a n).progPos := by
-      simp [h] at hpos
-  exact Nat.lt_irrefl contr
-
-exact Nat.lt_irrefl _ this-/
-
-
 
 lemma halts_gt {p a n m} (hm : n < m) (h : halted_at p a n) : halted_at p a m := by
-  sorry
+  -- This makes for a more useful start for the induction
+  let k := m - n - 1; let hk : k = m - n - 1 := by rfl
+  have hkm : m = (n + k).succ := by omega
+  rw [hkm] -- rewrite in terms of k
+  induction k with -- This isn't too complicated…
+  | zero =>
+    simp only [Nat.add_zero, Nat.succ_eq_add_one]
+    apply halts_step
+    exact h
+  | succ =>
+    simp only [Nat.succ_eq_add_one]
+    rename_i halted_before
+    rw [<- Nat.add_assoc]
+    apply halts_step
+    exact halted_before
 
 /--
 BF allows for a simple construction that turns a program `cond` into
@@ -227,7 +230,6 @@ lemma extension_matching_open_irrelevance
     -- Simplify all goals and hypotheses using just the facts that:
     -- list.get i = list[i] and for any i < listA.length: listA[i] = (listA + listB)[i]
     simp_all only [List.get_eq_getElem, List.getElem_append_left]
-
     split -- Split if pos = 0 on both sides of the equality
     · simp_all -- Simplify to make lean see the equality we get here is true…
     · split -- Split the match on the left side
