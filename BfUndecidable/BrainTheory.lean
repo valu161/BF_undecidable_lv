@@ -219,7 +219,7 @@ of the original program.
 
 lemma extension_body_irrelevance (prog : Data) (pos : Nat) (hpos : pos < prog.length := by omega) :
   prog.get ⟨pos, hpos⟩ = (ireh_extend prog).get ⟨pos, by simp; omega⟩ := by
-  simp_all
+  simp_all only [List.get_eq_getElem, List.getElem_append_left]
 
 lemma extension_matching_open_irrelevance
     (prog : Data) (pos : Nat) (depth : Nat) (hpos : pos < prog.length) :
@@ -385,7 +385,16 @@ lemma ireh_cond_state
     (hb : b = execute (ireh_extend cond) (input) (Nat.find h)) :
     (b.progPos = cond.length) ∧ ((b.mem[b.memPos]? != some 0) = eval h) :=
   by
-    sorry
+    apply And.intro
+    case left =>
+      subst hb
+      have h_spec := Nat.find_spec h
+      rw [<- h_spec]
+      rw [<- execute_extend_commute]
+      exact h
+      simp_all
+    case right =>
+      sorry
 
 /--
 If `cond input` evaluates to `false`, then
