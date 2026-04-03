@@ -385,16 +385,26 @@ lemma ireh_cond_state
     (hb : b = execute (ireh_extend cond) (input) (Nat.find h)) :
     (b.progPos = cond.length) ∧ ((b.mem[b.memPos]? != some 0) = eval h) :=
   by
-    apply And.intro
+    apply And.intro -- Split the And
     case left =>
       subst hb
+      -- get an obvious truth from the library… (h is true for (Nat.find h)
       have h_spec := Nat.find_spec h
-      rw [<- h_spec]
-      rw [<- execute_extend_commute]
-      exact h
-      simp_all
+      -- this step is not strictly necessary but makes the state easier to read…
+      unfold halted_at at h_spec
+      rw [<- h_spec] -- combine our hypotheses
+      rw [<- execute_extend_commute] -- and use the previous lemma to show the two sides are equal.
+      -- execute_extend_commute wants h and hn, which are provided with the bullet points below
+      · exact h
+      · simp_all
     case right =>
-      sorry
+      unfold eval -- This is essentially what the goal wants
+      simp_all only [beq_iff_eq, Bool.if_true_right, Bool.or_false]
+      rw [<- execute_extend_commute] -- again, show some equalities of ireh_extend
+      · grind only -- This isn't really transparent but it's just boring case checks from here on…
+      -- execute_extend_commute wants h and hn, which are provided with the bullet points below
+      · exact h
+      · simp_all
 
 /--
 If `cond input` evaluates to `false`, then
