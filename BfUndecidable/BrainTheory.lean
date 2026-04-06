@@ -42,13 +42,13 @@ lemma prog_immutable_steps {b k} : (step^[k] b).prog = b.prog := by
     have h1:  step^[k + 1] b = step (step^[k] b) := by simp [Function.iterate_succ_apply']
     have h2: (step (step^[k] b)).prog = (step^[k] b).prog := by simp [prog_immutable_step]
     have h3 : (step^[k] b).prog = b.prog := ih
-    rw [h1, h2, h3]
+    rw [h1, h2, h3] --self explanatory
 
 
 
 lemma prog_immutable_execute (p a n) : (execute p a n).prog = p := by
   unfold execute
-  use prog_immutable_steps
+  use prog_immutable_steps --wow I didn´t expect that to work...
 
 /-
   Matching brackets lie within `prog`.
@@ -154,12 +154,15 @@ Before the program has halted, the instruction pointer stays within `prog`
 -/
 lemma progPos_lt_find {p d : Data} {n : ℕ} (h : halts p d) (hn : n < Nat.find h) :
     (execute p d n).progPos < p.length := by
-  have hprogpos : (execute p d n).progPos ≤ p.length := progPos_le p d n
-  by_cases hpos : (execute p d n).progPos < p.length
-  · exact hpos
+  have hprogpos : (execute p d n).progPos ≤ p.length := progPos_le p d n --use the lemma from above
+  by_cases hpos : (execute p d n).progPos < p.length --split in the two cases: < and =
+  · exact hpos --if <, then we are done
   · have hprogpos_eq : halted_at p d n := by omega
+    --if not <, then we have = so we can use the definition of halts
     have contra : ¬ halted_at p d n := Nat.find_min h hn
-    contradiction
+    --nat.find comes with this lemma, which says that n is the smallest number
+    -- for which halted_at p d n
+    contradiction --proof by contradiction of the hypotheses
 
 
 /-
@@ -178,8 +181,12 @@ lemma halts_step {p a n} (h : halted_at p a n) : halted_at p a (n + 1) := by
       have hsimp : List.length p = List.length (execute p a n).prog :=
         by simp [prog_immutable_execute p a n]
       simp [hsimp] at h
-      intro contra
+      intro contra --contra is the hypothesis without /neg, simp contradicts it so we can
+      --construct false with omega
       omega
+--i called it hcomeon because I was hoping that simp[h] would be sufficient
+--after replacing halted_at with its definitions, but lean did not see that progPos=prog.length
+--means ¬ progPos < prog.length
   simp?[hcomeon]
   exact h
 
@@ -243,7 +250,14 @@ lemma extension_matching_open_irrelevance
         · apply extension_matching_open_irrelevance -- And now recurse, recurse, recurse!
       · apply extension_matching_open_irrelevance
 
--- simp_all [matchingClose] introduces Classica.choice. TBD. reduceIte, reduceDIte?
+@[simp] theorem matchingOpen_proof_irrel --had to include this for a later proof, explanation s.b.
+  (prog : Data) (pos : Nat)
+  (h₁ h₂ : pos < prog.length) :
+  matchingOpen prog pos 0 h₁ = matchingOpen prog pos 0 h₂ := by
+  have : h₁ = h₂ := Subsingleton.elim _ _
+  cases this
+  rfl
+-- simp_all [matchingClose] introduces Classica.choice. TBD. reduceIte, reduceDIte? -/
 --
 -- Interesting:
 -- https://proofassistants.stackexchange.com/questions/1115/how-usable-is-lean-for-constructive-mathematics
@@ -363,11 +377,131 @@ lemma extension_matching_close_irrelevance
   Executing a program commutes with extending it.
 -/
 
+
 lemma step_extend_commute {b : BrainState}
     (hb : b.progPos < b.prog.length) :
     { (step b) with prog := ireh_extend b.prog } =
     step { b with prog := ireh_extend b.prog } := by
-  sorry
+    have h1 : (step { b with prog := ireh_extend b.prog }).prog =
+    { step b with prog := ireh_extend b.prog }.prog
+    := by
+     apply prog_immutable_step -- to show later that the prog instance is equal
+    have hb2 : b.progPos < b.prog.length + 2 := by omega
+    have hb1 : b.progPos -1 < b.prog.length := by omega
+    dsimp
+    --dsimp: undo a 'let' that appears in the goal and does not let me use h1 for the prog equallity
+    ext progpos progchar
+     --instead of showing it for the whole structure we show it separately for its instances
+    · simp[h1] --yaaaaay
+    · unfold step ; simp only [extension_body_irrelevance b.prog b.progPos hb] ; simp [hb, hb2]
+      split
+      · simp
+      · simp
+      · simp
+      · simp
+      · simp[extension_matching_close_irrelevance b.prog (b.progPos+1) 0 hb]
+        split
+        · simp
+        · simp
+      · split
+        --actually I dont need the matching open irrelevance here, I can just split twice and simp.
+        -- I do it that way because simp with matching_open irrelevance,
+        --does not reduce the two if conditions in the goal to the same,
+        -- because of the implicit argument (proof of pos < prog.length)
+        -- but, as I said, we can just split and simp seperately
+        · split <;> simp
+        · split <;> simp
+      · simp
+      · simp
+      · simp
+    --now I just do the same thing over and over again, until it does not work anymore
+    · unfold step ; simp only [extension_body_irrelevance b.prog b.progPos hb] ; simp [hb, hb2]
+      split
+      · simp
+      · simp
+      · simp
+      · simp
+      · simp[extension_matching_close_irrelevance b.prog (b.progPos+1) 0 hb]
+        split
+        · simp
+        · simp
+      · split
+        · split <;> simp
+        · split <;> simp
+      · simp
+      · simp
+      · simp
+    · unfold step ; simp only [extension_body_irrelevance b.prog b.progPos hb] ; simp [hb, hb2]
+      split
+      · simp
+      · simp
+      · simp
+      · simp
+      · simp[extension_matching_close_irrelevance b.prog (b.progPos+1) 0 hb]
+        split
+        · simp
+        · simp
+      · split
+        · split <;> simp
+        · split <;> simp
+      · simp
+      · simp
+      · simp
+    /-okay here we are, now matching open will cause problems for me, because I now have to show
+    that target for the two matching opens will be the same by using the lemma and fighting against
+    the implicit argument. The Problem was:
+    lean does not recognize: matchingOpen ireh_extend b.prog b.progPos 0 h:(by simp; omga) =
+    matchingOpen ireh_extend b.prog b.progPos 0 (h:by omga) which is a bit crazy,
+    but when I let lean show me the proofs they were clearely different.
+    so my solution was a proof irrelevance lemma and
+    I used the symmetry of the equallity to get rid of the ireh_extend b.prog instead
+    of the b.prog, because then the simplification was easier.-/
+
+    · unfold step ; simp only [extension_body_irrelevance b.prog b.progPos hb] ; simp? [hb, hb2]
+      split
+      · simp
+      · simp
+      · simp
+      · simp
+      · simp[extension_matching_close_irrelevance b.prog (b.progPos+1) 0 hb]
+        split
+        · simp
+        · simp
+      · have symm (prog : Data) (pos : Nat) (depth : Nat) (hpos : pos < prog.length):
+         matchingOpen (ireh_extend prog) pos depth (by simp; omega) =
+         matchingOpen prog pos depth hpos := by
+         simp [(extension_matching_open_irrelevance prog pos depth hpos)]
+--just the symmetry of the equallity to get rid of the ireh_extend
+        simp? [symm b.prog (b.progPos-1) 0 hb1]
+        let homega : b.progPos - 1 < b.prog.length := by omega
+--this is the implicit argument for matching open in the first case
+        simp only [matchingOpen_proof_irrel b.prog (b.progPos-1) homega hb1]
+--proof irrelevance for the h-arguments in the matching open expression
+        split <;> simp --now split works :)
+      · simp
+      · simp
+      · simp
+    · unfold step
+      simp only [extension_body_irrelevance b.prog b.progPos hb] ; simp [hb, hb2]
+      split
+      · simp
+      · simp
+      · simp
+      · simp
+      · simp[extension_matching_close_irrelevance b.prog (b.progPos+1) 0 hb]
+        split
+        · simp
+        · simp
+      · split
+        · split <;> simp
+        · split <;> simp
+      · simp
+      · simp
+      · simp
+
+
+
+
 
 /-
 TBD: Feels a bit too long, given that it's just inducting over `step_comm`.
