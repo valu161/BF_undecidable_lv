@@ -226,7 +226,7 @@ of the original program.
 
 lemma extension_body_irrelevance (prog : Data) (pos : Nat) (hpos : pos < prog.length := by omega) :
   prog.get ⟨pos, hpos⟩ = (ireh_extend prog).get ⟨pos, by simp; omega⟩ := by
-  simp_all
+  simp_all only [List.get_eq_getElem, List.getElem_append_left]
 
 lemma extension_matching_open_irrelevance
     (prog : Data) (pos : Nat) (depth : Nat) (hpos : pos < prog.length) :
@@ -519,7 +519,26 @@ lemma ireh_cond_state
     (hb : b = execute (ireh_extend cond) (input) (Nat.find h)) :
     (b.progPos = cond.length) ∧ ((b.mem[b.memPos]? != some 0) = eval h) :=
   by
-    sorry
+    apply And.intro -- Split the And
+    case left =>
+      subst hb
+      -- get an obvious truth from the library… (h is true for (Nat.find h)
+      have h_spec := Nat.find_spec h
+      -- this step is not strictly necessary but makes the state easier to read…
+      unfold halted_at at h_spec
+      rw [<- h_spec] -- combine our hypotheses
+      rw [<- execute_extend_commute] -- and use the previous lemma to show the two sides are equal.
+      -- execute_extend_commute wants h and hn, which are provided with the bullet points below
+      · exact h
+      · simp_all
+    case right =>
+      unfold eval -- This is essentially what the goal wants
+      simp_all only [beq_iff_eq, Bool.if_true_right, Bool.or_false]
+      rw [<- execute_extend_commute] -- again, show some equalities of ireh_extend
+      · grind only -- This isn't really transparent but it's just boring case checks from here on…
+      -- execute_extend_commute wants h and hn, which are provided with the bullet points below
+      · exact h
+      · simp_all
 
 /--
 If `cond input` evaluates to `false`, then
