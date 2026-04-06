@@ -7,6 +7,7 @@ import Mathlib.Data.List.Basic
 import Mathlib.Logic.Function.Iterate
 import Mathlib.Data.Nat.Find
 import BfUndecidable.Interpreter
+import BfUndecidable.Basic
 
 lemma step_execute {p d n} : execute p d (n + 1) = step (execute p d n) := by
   simp [execute, Function.iterate_succ_apply']
@@ -456,7 +457,6 @@ lemma step_extend_commute {b : BrainState}
     so my solution was a proof irrelevance lemma and
     I used the symmetry of the equallity to get rid of the ireh_extend b.prog instead
     of the b.prog, because then the simplification was easier.-/
-
     · unfold step ; simp only [extension_body_irrelevance b.prog b.progPos hb] ; simp? [hb, hb2]
       split
       · simp
@@ -540,6 +540,10 @@ lemma ireh_cond_state
       · exact h
       · simp_all
 
+-- a little helper for later…
+lemma execute_def (p a : Data) (n : ℕ) :
+  execute p a n = step^[n] { prog := p, input := a } := rfl
+
 /--
 If `cond input` evaluates to `false`, then
 
@@ -550,8 +554,54 @@ will halt.
 theorem ireh_halts_of_false
     (cond : Data) (input : Data) (h : halts cond input)
     (hret : eval h = false) : halts (ireh_extend cond) input := by
-  sorry
-
+  -- construct a brainstate that is like the one in ireh_cond_state
+  let b := execute (ireh_extend cond) input (Nat.find h)
+  have hb : b = execute (ireh_extend cond) input (Nat.find h) := by rfl
+  have hstate := ireh_cond_state cond input h b hb -- get the state hypotheses
+  obtain ⟨hsleft, hsright⟩ := hstate
+  rw [hret] at hsright
+  simp only [bne_eq_false_iff_eq] at hsright
+  -- After we have our state(-hypotheses) in a convenient form, we can start doing the actual proof…
+  -- First, we get a little helper hypothesis that makes omega behave a bit nicer
+  have hlen : b.prog.length = cond.length + 2 := by
+    unfold b
+    simp only [prog_immutable_execute]
+    unfold ireh_extend
+    simp
+  -- Then, we prove some simple hypotheses about indexing to prepare the next step
+  have hind  : cond.length     < b.prog.length := by omega
+  have hind' : cond.length + 1 < b.prog.length := by omega
+  -- Now, we show what the second-to-last and last characters are
+  have hchar  : b.prog.get ⟨cond.length, hind⟩      = '[' := by
+    unfold b
+    simp [prog_immutable_execute]
+  have hchar' : b.prog.get ⟨cond.length + 1, hind'⟩ = ']' := by
+    unfold b
+    simp [prog_immutable_execute]
+  -- Almost at the end already!
+  -- Here we construct our example, i.e. (step b) and show that it halts
+  -- In case you wondered: (step b) is just b as defined above but with steps.succ ;)
+  have hbhalts : halted_at (ireh_extend cond) input (Nat.find h).succ := by
+    unfold halted_at
+    unfold execute -- Now we have everything in terms of step^[…]
+    -- Rewrite step^[N.succ] as step step^[N] so we can turn the latter into step b…
+    simp only [Function.iterate_succ_apply']
+    rw [<- execute_def, <- hb]
+    unfold step -- This messes up the goal a bit but we can go through it quite quickly!
+    -- Go straight to the matchingClose call in step. It goes like this:
+    --
+    --            /------------------ b.progPos = cond.length            (first if/else)
+    --            |      /----------- cond.length < b.prog.length = True (first if/else)
+    --            |      |     /----- b.prog.get ⟨b.progPos, h⟩ = '['     (match)
+    --            V      V     V
+    simp only [hsleft, hind, hchar]
+    unfold matchingClose
+    simp only [hind', hchar'] -- Similar to the simp only above, this goes through matchingClose
+    simp_all -- Now we know that progPos = prog.length, so the rest is trivial :)
+  -- And with this last hypothesis the actual proof is quite easy!
+  unfold halts
+  apply Exists.intro -- We need to find a witness
+  exact hbhalts      -- Turns out it's (Nat.find h).succ!
 
 /--
 If `cond input` evaluates to `true`, then
@@ -566,7 +616,6 @@ theorem ireh_runs_of_true (cond : Data) (input : Data) (h : halts cond input)
 
   have hm : matchingOpen (ireh_extend cond) (cond.length) 0 (by simp) = some (cond.length) := by
     sorry
-
 
 /-
 
