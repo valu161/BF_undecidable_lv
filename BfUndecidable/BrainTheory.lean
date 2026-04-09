@@ -611,13 +611,121 @@ If `cond input` evaluates to `true`, then
 will not halt.
 -/
 theorem ireh_runs_of_true (cond : Data) (input : Data) (h : halts cond input)
+--I used the same beginning as in the previous proof,
+-- because many of the hypotheses will come handy.
     (hret : eval h = true) : ¬ halts (ireh_extend cond) input := by
-  sorry
+  -- construct a brainstate that is like the one in ireh_cond_state
+  let b := execute (ireh_extend cond) input (Nat.find h)
+  have hb : b = execute (ireh_extend cond) input (Nat.find h) := by rfl
+  have hstate := ireh_cond_state cond input h b hb -- get the state hypotheses
+  obtain ⟨hsleft, hsright⟩ := hstate
+  simp?[hret] at hsright
+  -- After we have our state(-hypotheses) in a convenient form, we can start doing the actual proof…
+  -- First, we get a little helper hypothesis that makes omega behave a bit nicer
+  have hlen : b.prog.length = cond.length + 2 := by
+    unfold b
+    simp only [prog_immutable_execute]
+    unfold ireh_extend
+    simp
+  -- Then, we prove some simple hypotheses about indexing to prepare the next step
+  have hind  : cond.length     < b.prog.length := by omega
+  have hind' : cond.length + 1 < b.prog.length := by omega
+  -- Now, we show what the second-to-last and last characters are
+  have hchar  : b.prog.get ⟨cond.length, hind⟩      = '[' := by
+    unfold b
+    simp [prog_immutable_execute]
+  have hchar' : b.prog.get ⟨cond.length + 1, hind'⟩ = ']' := by
+    unfold b
+    simp [prog_immutable_execute]
+--here the differences start
+  intro contra --we want to show neg so we want to create false out of contra
+  --the idea:
+  --hrun says that it does not matter how long the programm runs,after having
+  --reached b, it will never reach its end. to make the induction work we dont only
+  --want hrun to say something about progpos, but also about mem[mempos] because we need
+  --that information from the induction hypothesis
+  -- to resolve the matching open in the step function
+  have hrun : ∀ n,
+  ((step^[n+1] b).progPos = cond.length + 1) ∧
+   (¬((step^[n+1] b).mem[(step^[n+1] b).memPos]? = some 0)) := by
+   intro n
+   induction n with
+   | zero => simp? ; unfold step ; simp only [hsleft, hind, hchar] ; simp [hsright]
+   --this is like the proof above, just unfold step and then get rid of step
+   | succ m ih =>
+     obtain ⟨ihleft, ihright⟩ := ih
+     have hstep: (step^[m + 1 + 1] b) = (step (step^[m + 1] b)) :=
+     by simp only [Function.iterate_succ_apply']
+      --same as always, rewrite step^[N.succ] as step step^[N]
+     rw [hstep]
+     let b' := (step^[m + 1] b)
+     have hb' :  (step^[m + 1] b) = b' := by rfl --dont know how to unfold just one step mor elegant
+     rw [hb'] -- this all is for unfolding just one step
+     unfold step
+     rw [<- hb'] --okay lets continue
+     have hind'' : List.length (step^[m + 1] b).prog = List.length cond + 2 := by
+      simp [prog_immutable_steps,prog_immutable_step, hlen ]
+       --using prog_immutable steps to simplify
+      -- the left hand side will be replaced by right hand side in the iff cond
+     simp only [hind'', ihleft] ; simp? -- undo the if condition, the simp just says 1<2
+     have h_im_prog : (step^[m] (step b)).prog = b.prog := by
+      simp[prog_immutable_steps,prog_immutable_step]
+    --again, we want to get rid of the m´s where we can
+     simp only [h_im_prog]
+     have helpp :
+      b.prog[List.length cond + 1] = List.get b.prog ⟨List.length cond + 1, hind'⟩ := by simp
+  --its ugly but simp didnt recognize that the two sides are the same,
+  --so I had to introduce this helper hypothesis
+     rw [helpp] ; simp only [hchar']; simp?
+     -- this undoes the match so we are left with matching open
 
-  have hm : matchingOpen (ireh_extend cond) (cond.length) 0 (by simp) = some (cond.length) := by
-    sorry
+     -- the namings follow this principle: matching open matches 2 characters, so h1 is for
+     -- the first and h2 is for the second and hstep2 just adds a step to the iteration like hstep
+     have hstep2 : (step^[m] (step b)).mem[(step^[m] (step b)).memPos]?
+     = (step^[m+1] b).mem[(step^[m+1] b).memPos]? := by rfl
+     have h2 : ¬ ( (step^[m] (step b)).mem[(step^[m] (step b)).memPos]? == some 0) := by
+       simp [hstep2, ihright]
+     have h1 : matchingOpen b.prog (List.length cond) = some (List.length cond) := by
+      unfold matchingOpen ; simp only [hchar] ;simp? ; intro h ;rw [h] ; simp
+     simp? [h1,h2]
+     simp?[hstep2]
+     --now we got rid of the matching therm and finally we can use th induction hypothesis
+     -- to solve the goal
+     exact ihright --hallelujah
 
-/-
+     /- so this was a bit confusing but the essence was: start at b -> do step once ->
+     show that progpos, mem and mempos did not change -> do induction: if the tree did not change
+     after m steps, then they will never change. (this obviously is not always true,
+     but in our case it is true) (as the proof says)-/
+--
+  rw [halts] at contra
+  obtain ⟨n, hn⟩ := contra --now we cook our contradiction: we say it halted after n steps,
+  --but then it also should stay halted, but we just showed that the programm will never
+  --reach its end so if we find a number, where hn says: it has halted, but hrun says, it has
+  --not halted (because progpos is not proglength) we are done
+  --this is what happens next: the number I chose is (Nat.find h + n+ 1) so everything
+  --from nowon is just the idea from above and rewriting so that lean sees this too
+  have hn' : n  <  n + 1 + Nat.find h := by omega --helping lemma
+  have hn'' : halted_at (ireh_extend cond) input ( n + 1 + Nat.find h ) := by
+   exact halts_gt hn' hn
+   --halting is preserved by halts_gt:
+   -- we can use it to show that it also halts after n+1+Nat.find h steps
+  have hrun' := (hrun  n).left
+  rw [halted_at, execute] at hn''
+  let x := Nat.find h
+  let hx := x= Nat.find h
+  rw [hb, execute] at hrun'
+  have hjungeistdasnervig : --I was annoyed that lean does not recognize this by its own
+  --and it took me pretty long to figure out how to show that, although its trivial
+   (step^[n + 1] (step^[Nat.find h] { prog := ireh_extend cond, input := input })).progPos =
+   (step^[ n + 1 + Nat.find h] { prog := ireh_extend cond, input := input }).progPos := by
+    simp only [ Function.iterate_add]; simp
+  rw [hjungeistdasnervig] at hrun'
+  simp [hn''] at hrun' --Tadaaaaa no computer can decide the bf halting problem!
+
+
+
+  /-
 
   BF is undecidable
   =================
