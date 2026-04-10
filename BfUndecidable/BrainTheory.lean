@@ -509,7 +509,48 @@ TBD: Feels a bit too long, given that it's just inducting over `step_comm`.
 lemma execute_extend_commute {p d : Data} {n : ℕ}
      (h : halts p d) (hn : n ≤ Nat.find h) :
      {execute p d n with prog := ireh_extend p} = execute (ireh_extend p) d n := by
-  sorry
+     --h1 is to produce an argument for step extend commute for every m. Its not that necessary
+     --but its a nice little lemma and when I wrote it down i didn´t know that I will not really
+     --need it
+  have h1 : ∀ (m:Nat) (hm : m < Nat.find h),
+  (execute p d m).progPos < (execute p d m).prog.length := by
+    intros m hm --introduce m and its hypothesis
+    simp? [prog_immutable_execute] --programm stays the same
+    exact progPos_lt_find h hm --we prooved that already..
+  induction n with
+  | zero => rfl --step^[0] is just the identity, so this is trivial
+  |succ nn ih =>
+    have h2  : nn < Nat.find h := by omega
+    have h3 : (execute p d nn).progPos < (execute p d nn).prog.length := h1 nn h2
+    --use h1 to get the hypothesis for step_extend_commute
+    have h4 : (execute p d (nn + 1)) = step (execute p d nn) := by
+     unfold execute ; simp [Function.iterate_succ_apply']
+    rw [h4] --extract step on the left to be able to use h3
+    have h5 : (execute (ireh_extend p) d (nn + 1)) = step (execute (ireh_extend p) d nn) := by
+      unfold execute ; simp [Function.iterate_succ_apply']
+    rw [h5] --extract step on the right to be able to use ih
+    have h6 : _ := step_extend_commute h3
+    --this is the main step, we use the lemma about step commuting with extension
+    --now we use h7 to rewrite the left side of the equallity which is different
+    --from the right hand side of the goal, but equal
+    have h7 : { prog := ireh_extend (execute p d nn).prog,
+                 input := (execute p d nn).input, output := (execute p d nn).output,
+                 mem := (execute p d nn).mem, progPos := (execute p d nn).progPos,
+                memPos := (execute p d nn).memPos }
+                  = execute (ireh_extend p) d nn := by
+                   simp? [(Eq.symm (ih (Nat.le_of_lt h2)))] --the right hand side is essentially
+                   --equal to the right hand side in the induction hypotheses
+                   apply prog_immutable_execute --this is just the last simplification
+    simp? [h7] at h6
+    simp? --undo the let in the goal, it was annoying
+    simp?[Eq.symm h6]
+    --the left hand side of h6 was always almost equal to the left hand side of the goal
+    apply Eq.symm --just one last little simplification...
+    apply prog_immutable_execute --and we are done
+
+
+
+
 
 /--
 State of `if cond(input) then loop_forever else halt` after executing `cond(input)`.
