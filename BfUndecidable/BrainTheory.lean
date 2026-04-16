@@ -395,6 +395,11 @@ lemma step_extend_commute {b : BrainState}
      --instead of showing it for the whole structure we show it separately for its instances
     · simp[h1] --yaaaaay
     · unfold step ; simp only [extension_body_irrelevance b.prog b.progPos hb] ; simp [hb, hb2]
+      --after unfolding step and looking at the goal I wanted to deinstall lean.
+      --I resisted this urge an then found how to teach lean that its completely
+      --overreacting: the simp only expression was trial and error
+      --(but it was clear that I had to use that lemma at some moment to simplify)
+      --after that I looked at the goal and found that hb and hb2 undo the if condition
       split
       · simp
       · simp
