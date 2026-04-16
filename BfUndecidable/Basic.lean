@@ -90,36 +90,41 @@ theorem halting_undecidable : ∀ candidate, ∃ spoiler,
 intro candidate
 let spoiler := if_run_else_halt candidate.prog --this is the name of the programm from the tot. programm sturcture
 use spoiler
-by_cases hctrue : (eval_total candidate spoiler = true)
+by_cases hctrue : (eval_total candidate spoiler = true) --split the proof into two cases
+--either eval total is true or it is not true, now we can use the ireh_runs... and ireh_halts
+--instances because we have all of their arguments.
 · have hnothalts : ¬ halts spoiler spoiler :=
-    ireh_runs_of_true candidate.prog spoiler (candidate.htotal spoiler) hctrue
-  exact Or.inl ⟨hctrue, hnothalts⟩
+    ireh_runs_of_true candidate.prog spoiler (candidate.htotal spoiler) hctrue --the ireh_... instances
+    --give us terms of the type we are searching
+  exact Or.inl ⟨hctrue, hnothalts⟩ --we construct an And-therm out of hctrue and hnothalts
+  --and use it as an argument for the Or- constructor
 
 · have hfalse : eval_total candidate spoiler = false :=
-    by simp [hctrue]
+    by simp [hctrue] --at first we have to bring it to the correct form using ¬ true = false
   have hhalts :  halts spoiler spoiler :=
    ireh_halts_of_false candidate.prog spoiler (candidate.htotal spoiler) hfalse
-  exact Or.inr ⟨hfalse, hhalts⟩
+  exact Or.inr ⟨hfalse, hhalts⟩ --samae as before
 
 
 lemma evalistureorfalse (cond : Data) (input : Data) (h : halts cond input) : eval cond input h = true ∨ eval cond input h = false := by
-
+--if we don´t want to use by cases: (It does not really matter but I think in the
+--previous proof we used LEM using by_cases, which we don´t need to)
 have trueorfalse (b:Bool) : b = true ∨ b = false := by
   cases b
   · exact Or.inr rfl
   · exact Or.inl rfl
 exact trueorfalse (eval cond input h)
 
-theorem halting_undecidableoflemma : ∀ candidate, ∃ spoiler,
+theorem halting_undecidable_without_bycases : ∀ candidate, ∃ spoiler,
   (eval_total candidate spoiler = true ∧ ¬halts spoiler spoiler)
   ∨
   (eval_total candidate spoiler = false ∧ halts spoiler spoiler) := by
 intro candidate
 let spoiler := if_run_else_halt candidate.prog --this is the name of the programm from the tot. programm sturcture
 use spoiler
-have trueorfalse :  eval_total candidate spoiler = true ∨ eval_total candidate spoiler = false := by
-  have h := evalistureorfalse candidate.prog spoiler (candidate.htotal spoiler)
-  exact h
+have trueorfalse :  eval_total candidate spoiler = true ∨ eval_total candidate spoiler = false :=
+ evalistureorfalse candidate.prog spoiler (candidate.htotal spoiler) --construct an Or-therm on which we
+ --can do a case analysis, therest stays the same as above
 cases trueorfalse with
 | inl htrue =>
   have hnothalts : ¬ halts spoiler spoiler :=
@@ -137,36 +142,38 @@ theorem halting_undecidable_neg_formulation :
   ¬ ∃ decider, ∀ prog, eval_total decider prog = true ↔ halts prog prog := by
   intro (h :  ∃ decider, ∀ prog, eval_total decider prog = true ↔ halts prog prog)
   match h with
-  | ⟨decider, hdecider⟩ =>
-  let spoiler := if_run_else_halt decider.prog
-  have hneghalts : eval_total decider spoiler = true -> ¬ halts spoiler spoiler :=
-    ireh_runs_of_true decider.prog spoiler (decider.htotal spoiler)
-  have hhalts : eval_total decider spoiler = true -> halts spoiler spoiler := by
-    cases (hdecider spoiler) with
-   | intro hpq hqp => exact (hpq)
-  have trueorfalse :  eval_total decider spoiler = true ∨ eval_total decider spoiler = false := by
-    have h := evalistureorfalse decider.prog spoiler (decider.htotal spoiler)
-    exact h
+  | ⟨decider, hdecider⟩ => --Exist constructor has two arguments
+  let spoiler := if_run_else_halt decider.prog --as above
+  have trueorfalse :  eval_total decider spoiler = true ∨ eval_total decider spoiler = false :=
+   evalistureorfalse decider.prog spoiler (decider.htotal spoiler)
+   -- I wanted to do it the same way as the previous proof but it turned out to be unnecessary
+   --complicated... but it works
   cases trueorfalse with
   | inl htrue =>
+    have hneghalts : eval_total decider spoiler = true -> ¬ halts spoiler spoiler :=
+    ireh_runs_of_true decider.prog spoiler (decider.htotal spoiler)
+    -- use ireh_... to get a not halts hypothesis (with htrue a scondition)
+    --
+    have hhalts : eval_total decider spoiler = true -> halts spoiler spoiler := by
+     cases (hdecider spoiler) with --eliminate the <-> to get the halts hypothesis
+     | intro hpq hqp => exact (hpq)
+    --
+    --
     have hnothalts : ¬ halts spoiler spoiler := hneghalts htrue
-    have hhaltscontradiction : halts spoiler spoiler := hhalts htrue
-    exact hnothalts hhaltscontradiction
+    have hhalts : halts spoiler spoiler := hhalts htrue
+    exact hnothalts hhalts
   | inr hfalse =>
+  --we have to construct a contradiction again
   have hnottrue: ¬ eval_total decider spoiler = true := by
-   intro htrue
-   have falseistrue : false=true := by
-    rw [hfalse] at htrue
-    exact htrue
-   exact Bool.noConfusion (falseistrue)
+   simp_all --if its false it is not true
+   --
+   --now I use the other argument (<-) of the '<->'constructor to construct a contradiction
   have hactuallytrue : eval_total decider spoiler = true := by
    cases (hdecider spoiler) with
    | intro hpq hqp => exact (hqp (ireh_halts_of_false decider.prog spoiler (decider.htotal spoiler) hfalse))
   exact hnottrue hactuallytrue
 
-  --damn i messed up a little bit here but in the end I got the proof working XD
-  ---next time:  rw [← halting_prob] at ...  makes it easier. I just use the halting prob theorem that I already proved above and dont
-  -- have to do half of teh work again
+
 
 
 
