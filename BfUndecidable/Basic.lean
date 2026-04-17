@@ -81,7 +81,8 @@ This formalization emphasizes the constructive nature of the proof. For its
 (equivalent) formulation as a negation, see below. -/
 
 
-
+--since this were my first real lean proofs, I didnt know much about helpers like simp, simp_all, rw, omega ...
+--so I did many things manually and they became pretty long, this will get a bit better in the other file
 
 theorem halting_undecidable : ∀ candidate, ∃ spoiler,
   (eval_total candidate spoiler = true ∧ ¬halts spoiler spoiler)
@@ -165,7 +166,7 @@ theorem halting_undecidable_neg_formulation :
   | inr hfalse =>
   --we have to construct a contradiction again
   have hnottrue: ¬ eval_total decider spoiler = true := by
-   simp_all --if its false it is not true
+   simp_all --i edited that, before I had a 7 line proof that false is not true xD
    --
    --now I use the other argument (<-) of the '<->'constructor to construct a contradiction
   have hactuallytrue : eval_total decider spoiler = true := by
