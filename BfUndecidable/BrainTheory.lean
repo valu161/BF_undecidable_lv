@@ -341,12 +341,7 @@ lemma extension_matching_close_irrelevance
       intro _ -- We don't need this hypothesis but its good to have it out of the way
       rename_i posh _ -- `posh` is a wordplay (it's hpos "backwards")
       have p_eq_len := And.intro hpos posh
-      /- ^ Okay. This one caused me some headaches and cost a lot of time. As it turns out, `and`
-           and therefore the ∧ symbol are `Prop`-valued
-           and can therefore not be applied to hypotheses.
-           Sadly, that is not documented anywhere I checked so I essentially had to guess
-           until I arrived at `And.into` and after some web searches,
-           I'm still not sure what exactly the `.intro` does here. Please, someone explain! -/
+      /-construct an And- expression with its constructor And.intro-/
       rw [<- Nat.eq_iff_le_and_ge] at p_eq_len -- Construct an equality for p out of hpos and posh
       subst p_eq_len -- and use that equality!
       rw [Eq.comm] -- swap the equality in the goal
@@ -401,7 +396,7 @@ lemma step_extend_commute {b : BrainState}
       --(but it was clear that I had to use that lemma at some moment to simplify)
       --after that I looked at the goal and found that hb and hb2 undo the if condition
       split
-      · simp
+      · simp --trivial cases, just split and simp
       · simp
       · simp
       · simp
